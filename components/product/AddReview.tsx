@@ -1,18 +1,43 @@
 "use client";
 
+import { createReview } from "@/lib/actions/reviews";
 import RatingSelect from "./Review/RatingSelect";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "../ui/button";
+import { Send } from "lucide-react";
 
-export default function Component() {
+export default function Component({ id }: { id: string }) {
   const [rating, setRating] = useState(0);
   const [name, setName] = useState("");
   const [review, setReview] = useState("");
+  const [isPending, setIsPending] = useState(false)
 
-  const handleSubmit = (event: any) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    setIsPending(true);
 
-    console.log({ name, rating, review });
+    try {
+      const success = await createReview({
+        name,
+        rating,
+        content: review,
+        productId: parseInt(id),
+        });
+        if (success) {
+          console.log("review created successfully")
+          toast.success("Your review has been added!")
+        } else {
+          console.log("Failed to create a review")
+          toast.error("Oops! Trouble adding your review")
+        }
+
+    } catch(error) {
+      console.error("Error creating review");
+    } finally {
+      setIsPending(false);
+    }
   };
   return (
     <section className="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg shadow-md">
@@ -62,12 +87,14 @@ export default function Component() {
               rows={4}
             />
           </div>
-          <button
+          <Button
             className="w-full bg-black hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             type="submit"
+            disabled={isPending}
           >
-            Submit Review
-          </button>
+            {isPending ? "loading.." : "Submit Your Review"}
+            <Send className="size-6 ml-2"/>
+          </Button>
         </form>
       </div>
     </section>

@@ -2,7 +2,7 @@
 
 import ImageSelect from "./ImageSelect";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { PlusIcon } from "lucide-react";
 
 import { Label } from "@/components/ui/label";
@@ -17,29 +17,68 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
+import { createProduct, updateProduct } from "@/lib/actions/products";
+import { error } from "console";
+import { Image, Product, Review } from "@prisma/client";
+import { useRouter } from "next/navigation";
+
 export const revalidate = 1;
+
+// Define the type
+export interface ProductEditProps extends Product {
+  id:number;
+  reviews: Review[];
+  images: Image [];
+}
 
 export default function AddProduct({
   edit,
   id,
+  product,
 }: {
   edit?: boolean;
   id?: string;
+  product?: ProductEditProps;
 }) {
   const title = edit ? "Edit Product " + id : "Add Product";
   const subText = edit
     ? "Update the details of your product here."
     : "Add a new product to your store.";
 
-  const [images, setImages] = useState<string[]>([]);
-  const [name, setName] = useState("");
-  const [price, setPrice] = useState(0);
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("electronics");
+  const router = useRouter();
 
-  const handleSubmit = (e: any) => {
+  const [images, setImages] = useState<string[]>(
+    product?.images.map((i) => i.url) || []);
+  const [name, setName] = useState(product?.name || "");
+  const [price, setPrice] = useState(product?.price || 0);
+  const [description, setDescription] = useState(product?.description || "");
+  const [category, setCategory] = useState(product?.category || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    console.log({ name, category, images, description, price });
+    setIsSubmitting(true);
+
+    try {
+      // If the method is 'edit', update the product
+      if (edit && product) {
+       const updatedProduct = await updateProduct(product.id, {name, price, description, category, images});
+       if(updatedProduct) {
+        // Redirect user back to the product page
+          router.push(`/product/view/${updatedProduct.id}`)
+       } 
+      } else {
+        const newProduct = await createProduct({ name, category, description, price });
+        if (newProduct) {
+          router.push(`/product/view/${newProduct.id}`);
+        }
+      }
+      
+    } catch(error) {
+      console.error("Error creating product:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -102,7 +141,13 @@ export default function AddProduct({
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline">Cancel</Button>
-          <Button>Save Changes</Button>
+          <Button
+          className=" bg-black hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          type="submit"
+          disabled={isSubmitting}
+          >
+            {isSubmitting ? "loading..." : "Submit"}
+          </Button>
         </div>
       </form>
     </div>
